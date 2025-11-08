@@ -1,88 +1,155 @@
-import Image from "next/image";
+"use client"
+import { useState, useEffect } from "react"
 
-export default function Home() {
+const DEFAULT_CODE = `
+local function greet(name: string): string
+    return \`Hello, {name}!\`
+end
+
+local message = greet("World")
+print(message)`
+
+export default function LuauASTParser() {
+  const [input, setInput] = useState(DEFAULT_CODE)
+  const [output, setOutput] = useState("")
+  const [parseFunction, setParseFunction] = useState<((code: string) => string) | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadWasm = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        
+        const wasmModule = await import('./wasm/luau_ast_parse.js')
+        
+        await wasmModule.default()
+        
+        const parser = (code: string): string => {
+          try {
+            return wasmModule.parse_luau(code)
+          } catch (err) {
+            return `Parse Error: ${err instanceof Error ? err.message : String(err)}`
+          }
+        }
+        
+        setParseFunction(() => parser)
+        setIsLoading(false)
+      } catch (err) {
+        console.error("Failed to load WASM module:", err)
+        setError(`Failed to load parser: ${err instanceof Error ? err.message : String(err)}`)
+        setIsLoading(false)
+      }
+    }
+    
+    loadWasm()
+  }, [])
+
+  // Parse input whenever it changes
+  useEffect(() => {
+    if (parseFunction && input) {
+      try {
+        const result = parseFunction(input)
+        setOutput(result)
+      } catch (err) {
+        setOutput(`Error: ${err instanceof Error ? err.message : String(err)}`)
+      }
+    }
+  }, [input, parseFunction])
+
+  const lineCount = input.split("\n").length
+  const charCount = input.length
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-[#111014] flex flex-col font-mono">
+      {/* Header */}
+      <header className="text-center py-12 px-4 border-b border-[#df5050]/20">
+        <h1 className="text-4xl font-bold text-[#df5050] mb-3 tracking-tight">
+          Luau AST Parser
+        </h1>
+        <p className="text-white/70 text-sm">
+          Enter Luau code on the left to see the parsed AST on the right
+        </p>
+      </header>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Main Content - Two Panel Layout */}
+      <main className="flex-1 px-8 py-8">
+        <div className="max-w-[1600px] mx-auto h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 h-full border border-[#df5050]/20">
+            {/* Left Panel - Input */}
+            <div className="flex flex-col bg-[#1d1b22] overflow-hidden min-h-[600px] lg:min-h-0 border-r border-[#df5050]/20">
+              <div className="bg-[#111014] px-6 py-3 border-b border-[#df5050]/20">
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+                  Input
+                </h2>
+              </div>
+              
+              {/* Textarea */}
+              <div className="flex-1 p-0">
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Tab") {
+                      e.preventDefault()
+                      const start = e.currentTarget.selectionStart
+                      const end = e.currentTarget.selectionEnd
+                      const newValue = input.substring(0, start) + "\t" + input.substring(end)
+                      setInput(newValue)
+                      setTimeout(() => {
+                        e.currentTarget.selectionStart = e.currentTarget.selectionEnd = start + 1
+                      }, 0)
+                    }
+                  }}
+                  placeholder="Enter Luau code here..."
+                  spellCheck={false}
+                  className="w-full h-full bg-[#1d1b22] text-white font-mono text-sm resize-none outline-none p-6 leading-relaxed placeholder:text-white/30"
+                />
+              </div>
+              
+              <div className="bg-[#111014] px-6 py-3 border-t border-[#df5050]/20 flex justify-between text-xs text-white/60 font-bold">
+                <span>{lineCount} LINES</span>
+                <span>{charCount} CHARACTERS</span>
+              </div>
+            </div>
+
+            {/* Right Panel - AST Output */}
+            <div className="flex flex-col bg-[#1d1b22] overflow-hidden min-h-[600px] lg:min-h-0">
+              {/* Panel Header */}
+              <div className="bg-[#111014] px-6 py-3 border-b border-[#df5050]/20">
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+                  AST Output
+                </h2>
+              </div>
+              
+              {/* Output Display */}
+              <div className="flex-1 p-6 overflow-auto">
+                {isLoading ? (
+                  <div className="text-white/50 text-sm">Loading WASM parser...</div>
+                ) : error ? (
+                  <div className="text-[#df5050] text-sm">{error}</div>
+                ) : (
+                  <pre className="text-[#1bbb36] font-mono text-sm whitespace-pre leading-relaxed">
+                    {output || "Waiting for input..."}
+                  </pre>
+                )}
+              </div>
+              
+              <div className="bg-[#111014] px-6 py-3 border-t border-[#df5050]/20 flex justify-between text-xs text-white/60 font-bold">
+                <span>{isLoading ? "INITIALIZING..." : error ? "ERROR" : "READY"}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      {/* Footer */}
+      <footer className="text-center py-6 px-4 border-t border-[#df5050]/20">
+        <p className="text-white/50 text-xs">
+          Built with Rust + WASM · Find edge cases and report them!
+        </p>
       </footer>
     </div>
-  );
+  )
 }
