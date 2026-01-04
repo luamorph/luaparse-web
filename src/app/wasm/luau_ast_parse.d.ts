@@ -1,6 +1,14 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export function parse(input: string, version: string): string;
+
+export function parse_lua51(input: string): string;
+
+export function parse_lua52(input: string): string;
+
+export function parse_lua53(input: string): string;
+
 export function parse_luau(input: string): string;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -8,6 +16,10 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly parse_luau: (a: number, b: number) => [number, number];
+  readonly parse_lua51: (a: number, b: number) => [number, number];
+  readonly parse_lua52: (a: number, b: number) => [number, number];
+  readonly parse_lua53: (a: number, b: number) => [number, number];
+  readonly parse: (a: number, b: number, c: number, d: number) => [number, number];
   readonly __wbindgen_externrefs: WebAssembly.Table;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

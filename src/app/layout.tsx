@@ -8,8 +8,8 @@ const geist = Geist({ subsets: ["latin"] })
 const geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Luau AST Parser",
-  description: "Parse Luau code into an Abstract Syntax Tree",
+  title: "Lua AST Parser",
+  description: "Parse Lua code into an Abstract Syntax Tree",
   icons: {
     icon: [
       {
