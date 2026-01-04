@@ -9,10 +9,13 @@ end
 local message = greet("World")
 print(message)`
 
+type LuaVersion = "luau" | "5.1" | "5.2" | "5.3"
+
 export default function LuauASTParser() {
   const [input, setInput] = useState(DEFAULT_CODE)
   const [output, setOutput] = useState("")
-  const [parseFunction, setParseFunction] = useState<((code: string) => string) | null>(null)
+  const [version, setVersion] = useState<LuaVersion>("luau")
+  const [parseFunction, setParseFunction] = useState<((code: string, ver: string) => string) | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -26,9 +29,9 @@ export default function LuauASTParser() {
         
         await wasmModule.default()
         
-        const parser = (code: string): string => {
+        const parser = (code: string, ver: string): string => {
           try {
-            return wasmModule.parse_luau(code)
+            return wasmModule.parse(code, ver)
           } catch (err) {
             return `Parse Error: ${err instanceof Error ? err.message : String(err)}`
           }
@@ -50,13 +53,13 @@ export default function LuauASTParser() {
   useEffect(() => {
     if (parseFunction && input) {
       try {
-        const result = parseFunction(input)
+        const result = parseFunction(input, version)
         setOutput(result)
       } catch (err) {
         setOutput(`Error: ${err instanceof Error ? err.message : String(err)}`)
       }
     }
-  }, [input, parseFunction])
+  }, [input, version, parseFunction])
 
   const lineCount = input.split("\n").length
   const charCount = input.length
@@ -66,11 +69,26 @@ export default function LuauASTParser() {
       {/* Header */}
       <header className="text-center py-12 px-4 border-b border-[#df5050]/20">
         <h1 className="text-4xl font-bold text-[#df5050] mb-3 tracking-tight">
-          Luau AST Parser
+          Lua AST Parser
         </h1>
         <p className="text-white/70 text-sm">
-          Enter Luau code on the left to see the parsed AST on the right
+          Enter Lua code on the left to see the parsed AST on the right
         </p>
+        <div className="mt-4 flex justify-center gap-2">
+          {(["luau", "5.1", "5.2", "5.3"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setVersion(v)}
+              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
+                version === v
+                  ? "bg-[#df5050] text-white"
+                  : "bg-[#1d1b22] text-white/60 hover:text-white border border-[#df5050]/20"
+              }`}
+            >
+              {v === "luau" ? "Luau" : `Lua ${v}`}
+            </button>
+          ))}
+        </div>
       </header>
 
       {/* Main Content - Two Panel Layout */}
@@ -102,7 +120,7 @@ export default function LuauASTParser() {
                       }, 0)
                     }
                   }}
-                  placeholder="Enter Luau code here..."
+                  placeholder="Enter Lua code here..."
                   spellCheck={false}
                   className="w-full h-full bg-[#1d1b22] text-white font-mono text-sm resize-none outline-none p-6 leading-relaxed placeholder:text-white/30"
                 />
