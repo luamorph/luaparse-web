@@ -5,6 +5,7 @@ export const parse_luau: (a: number, b: number) => [number, number];
 export const parse_lua51: (a: number, b: number) => [number, number];
 export const parse_lua52: (a: number, b: number) => [number, number];
 export const parse_lua53: (a: number, b: number) => [number, number];
+export const parse_lua54: (a: number, b: number) => [number, number];
 export const parse: (a: number, b: number, c: number, d: number) => [number, number];
 export const __wbindgen_externrefs: WebAssembly.Table;
 export const __wbindgen_malloc: (a: number, b: number) => number;
